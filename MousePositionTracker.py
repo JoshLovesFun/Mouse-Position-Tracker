@@ -1,187 +1,176 @@
+# INSTRUCTIONS FOR MOUSEPAD FRICTION TESTING:
+# ENTER "INPUTS", LOWER MOUSE DPI, THEN RUN CODE, FLICK YOUR MOUSE THEN LET GO OF MOUSE SO IT IS FREE MOVING
+# WHEN MOUSE STOPS, THEN REPEAT IN THE OPPOSITE DIRECTION, KEEP DOING THIS THROUGHOUT THE TOTAL RUN TIME
+# TRY TO AVOID THE CORNERS OF THE MONITOR CAUSE CALCULATIONS MAY GET MESSED UP A BIT
+# WHEN TESTING IS COMPLETE, CODE WILL EXTRACT THE NEGATIVE ACCELERATION PERIODS (WHEN YOUR HAND LEAVES YOUR MOUSE)
+# BASED ON THESE NEGATIVE ACCELERATION PERIODS, CODE WILL CALCULATE AVERAGE DYNAMIC FRICTION
+# GRAPHS OF RESULTS WILL APPEAR IN THE SAME FOLDER CODE IS RAN FROM
+
 # IMPORTS
 import numpy as np
 import pyautogui
 import datetime
 import csv
 import matplotlib.pyplot as plt
-from scipy.signal import savgol_filter
 
 # INPUTS
-Run_Time = 25  # How Many Seconds Code Runs For
-Time_Sample = 0.01  # How Many Samples per second
+Test_Name = 'Mousepad friction test 1'
+Mouse_DPI = 100  # Mouse DPI
+Total_Run_Time = 25  # How Many Seconds Code Runs For
 X_Resolution = 1920  # Monitor Pixels in the X
 Y_Resolution = 1080  # Monitor Pixels in the Y
-Mouse_DPI = 200   # Mouse DPI
-Test_Name = 'Hyper X & Gwolves Dots'
-Smooth_V = 21  # Increase sampling factor for smoother velocity curve
-Smooth_A = 21  # Increase sampling factor for smoother acceleration curve
+Time_Step = 0.01  # SAMPLE RATE
 
-# MAIN STORAGE ARRAY HEADERS
-MainArray = [["T (sec)", "X (in)", "Y (in)", "D (in)", "V (in/s)", "A (in/s^2)", "Vs (in/s)", "As (in/s^2)", "Avs (in/s^2)"]]
-T = []
-X = []
-Y = []
-D = []
-Af = []
-P = []
-Fk = []
-Pyend = []
-Pxend = []
+# RESULTS VISUALIZATION
+Friction_Plot = "Y"  # IF YOU WANT THE COEFFICIENT OF FRICTION PLOT = "Y". IF YOU ARE NOT TESTING THIS TURN IT OFF
+DVA_Plots = "Y"  # IF YOU WANT MOUSE DISTANCE VELOCITY AND ACCELERATION PLOT = "Y"
+CSV_Results = "N"  # IF YOU WANT CSV RESULTS = "Y"
+Position_Plot = "N"  # IF YOU WANT MOUSE POSITION PLOT = "Y"
 
-# ITERATE THROUGH EACH TIME INTERVAL
+# STORAGE LISTS DEFINED
+T, X, Y, D, P, kF, Px, Py, Ax, Ay = [], [], [], [0], [], [], [], [], [], []
+
+# INITIALIZE TIME PARAMETERS
 TimeStart = datetime.datetime.now()
-TimeDelta = datetime.datetime.now()-TimeStart
-TimeDeltaa = TimeDelta
+Current_Run_Time = datetime.datetime.now() - TimeStart
+Sample_Time = Current_Run_Time
 
-# ITERATE THOUGH ALL TIME INTERVALS
-while TimeDelta.total_seconds() < Run_Time:
-    TimeDelta = datetime.datetime.now() - TimeStart
+# ITERATE THOUGH TIME
+while Current_Run_Time.total_seconds() <= Total_Run_Time:
+    Current_Run_Time = datetime.datetime.now() - TimeStart
 
-    # IF TIME IS GREATER THAN NEXT T STEP
-    if TimeDeltaa.total_seconds() + Time_Sample <= TimeDelta.total_seconds():
+    # IF CURRENT TIME IS GREATER THAN Sample Time + Time Step, GET MOUSE POSITION AND APPEND DATA TO T X AND Y LISTS
+    if Sample_Time.total_seconds() + Time_Step <= Current_Run_Time.total_seconds():
         Position = pyautogui.position()
-        TimeDeltaa = datetime.datetime.now() - TimeStart
-        New_Row = [TimeDeltaa.total_seconds(), Position[0]/Mouse_DPI, Y_Resolution/Mouse_DPI - Position[1]/Mouse_DPI, 0, 0, 0, 0, 0, 0]
-        MainArray.append(New_Row)
+        Sample_Time = datetime.datetime.now() - TimeStart
+        T.append(Sample_Time.total_seconds())
+        X.append(Position[0]/ Mouse_DPI)
+        Y.append(Y_Resolution / Mouse_DPI - Position[1] / Mouse_DPI)
 
-# CALCULATE TOTAL DISTANCE
-for i in range(2, len(MainArray)):
-    Del_D = (((float(MainArray[i][1]) - float(MainArray[i - 1][1])) ** 2 + (float(MainArray[i][2]) - float(MainArray[i - 1][2])) ** 2) ** 0.5)
+# CALCULATE TOTAL DISTANCE TRAVELED
+for i in range(1, len(T)):
+    del_D = ((X[i] - X[i - 1]) ** 2 + (Y[i] - Y[i - 1]) ** 2) ** 0.5
+    D.append(del_D + D[i - 1])
 
-    # TOTAL DISTANCE
-    MainArray[i][3] = Del_D + float(MainArray[i - 1][3])
-
-    # APPEND
-    T.append(MainArray[i][0])
-    X.append(MainArray[i][1])
-    Y.append(MainArray[i][2])
-    D.append(MainArray[i][3])
-
-# GRADIENTS
+# VELOCITY AND ACCELERATION CALCULATIONS
 V = np.gradient(D, T)
 A = np.gradient(V, T)
 
-# SMOOTHED VELOCITY
-V_s = savgol_filter(V, Smooth_V, 3)
-
-# ACCELERATION BASED ON SMOOTH VELOCITY
-A_s = np.gradient(V_s, T)
-
-# SMOOTHED ACCELERATION
-A_vs = savgol_filter(A_s, Smooth_A, 3)
-
-# PRINT DATA TO MAIN ARRAY
-for i in range(2, len(MainArray)):
-    MainArray[i][4] = V[i - 2]
-    MainArray[i][5] = A[i - 2]
-    MainArray[i][6] = V_s[i-2]
-    MainArray[i][7] = A_s[i-2]
-    MainArray[i][8] = A_vs[i-2]
-
-# CSV DATA WRITING
-with open(Test_Name + ' MousePosition.csv', 'w', newline='') as csvfile:
-    csvwriter = csv.writer(csvfile)
-    for row in MainArray:
-        csvwriter.writerow(row)
-
-
-Count = 0
-Trial = 0
+# ITERATE THROUGH ACCELERATION DATA TO EXTRACT RELEVANT DECELERATION INTERVALS "Trials"
+Trial_Point = 0
+Trial_Number = 0
 ii = 0
-# ITERATE THROUGH MAIN ARRAY
-for i in range(1, len(MainArray) - 12):
-    Trial_T = 0
-    P_in_T_Count = 0
+for i in range(5, len(T) - 2):
+    Individual_Trial_Sum = 0
+    Individual_Trial_Point = 0
 
-    # SKIP OPERATION IF OPERATION WAS ALREADY DONE
+    # SKIP OPERATION IF DECELERATION INTERVAL WAS LOOKED AT ALREADY
     if i <= ii:
         continue
 
-    # IF SMOOTHED ACCELERATION IS NEGATIVE AND MOTION IS TO THE LEFT AND SUBSTANTIAL VELOCITY NAD MOUSE IS NOT IN CORNERS
-    if A_vs[i] < 0 and V[i] > 5 and V[i + 1] > 5 and X[i+2] <= X_Resolution/Mouse_DPI - 0.2 and Y[i+2] <= Y_Resolution/Mouse_DPI - 0.2 and X[i+2] >= 0.2 and Y[i+2] >= 0.2:
-        Trial = Trial + 1
+    # IF SMOOTHED ACCELERATION IS NEGATIVE AND SUBSTANTIAL VELOCITY AND MOUSE IS NOT IN CORNERS, EXTRACT DECELERATION
+    if A[i] < 0 and A[i - 1] < 0 and A[i - 2] < 0 and A[i - 3] < 0 and A[i - 4] < 0 and A[i - 5] < 0 and \
+            V[i] > 5 and V[i + 1] > 5 and \
+            X[i + 2] <= X_Resolution / Mouse_DPI - 0.2 and Y[i + 2] <= Y_Resolution / Mouse_DPI - 0.2 and X[i + 2] >= 0.2 and Y[i + 2] >= 0.2:
 
-        # START INNER LOOP
-        for ii in range(i, len(MainArray) - 3):
-            P.append(Count)
-            Fk.append(A[ii] / -386.1)
-            Trial_T = Trial_T + (A[ii] / -386.1)
-            Count = Count + 1
-            P_in_T_Count = P_in_T_Count + 1
+        # PULL ALL DECELERATION DATA FOR INTERVAL
+        Trial_Number += 1
+        for ii in range(i, len(T) - 2):
 
-            # IF VELOCITY IS SMALL BREAK OR IF MOUSE IS NEAR CORNERS BREAK
-            if V[ii + 1] <= 2 or X[ii+2] >= X_Resolution/Mouse_DPI - 0.2 or Y[ii+2] >= Y_Resolution/Mouse_DPI - 0.2 or X[ii+2] <= 0.2 or Y[ii+2] <= 0.2:
+            # GET POINT AND DYNAMIC FRICTION AT POINT
+            P.append(Trial_Point)
+            kF.append(A[ii] / -386.1)
+            Individual_Trial_Sum += (A[ii] / -386.1)
+
+            # GET LIST OF RELEVANT ACCELERATION POINTS SO WE CAN GRAPH THEM
+            Ax.append(T[ii])
+            Ay.append(A[ii])
+
+            Trial_Point += 1
+            Individual_Trial_Point += 1
+
+            # IF VELOCITY IS SMALL (MEANING NEARING END OF DECELERATION) BREAK OR IF MOUSE IS NEAR CORNERS BREAK
+            if V[ii + 1] <= 2 or X[ii + 2] >= X_Resolution / Mouse_DPI - 0.2 or Y[ii + 2] >= Y_Resolution / Mouse_DPI - 0.2 or X[ii + 2] <= 0.2 or Y[ii + 2] <= 0.2:
                 break
 
-        # INDIVIDUAL TRIAL RESULTS
-        Pxend.append(Count-1)
-        Pyend.append(round(Trial_T / P_in_T_Count, 4))
-        print('Average Trial ' + str(Trial) + ' Dynamic Friction is: ' + str(round(Trial_T / P_in_T_Count, 4)) + '. Over ' + str(P_in_T_Count) + ' Points.' )
+        # INDIVIDUAL TRIAL AVERAGE DYNAMIC FRICTION
+        Px.append(Trial_Point - 1)
+        Py.append(round(Individual_Trial_Sum / Individual_Trial_Point, 4))
+        print('Average Trial ' + str(Trial_Number) + ' Dynamic Friction is: ' + str(round(Individual_Trial_Sum / Individual_Trial_Point, 4)) + '. Over ' + str(Individual_Trial_Point) + ' Points.')
 
-# SOME FINAL CALCS
-Fka = round((sum(Fk) / len(Fk)), 4)
-print('Average Dynamic Friction is: ' + str(Fka))
-Fkaa = [Fka]*len(P)
+# TOTAL AVERAGE DYNAMIC FRICTION, IF NO DECELERATIONS CODE SKIPS THIS
+try:
+    kF_Ave = [round((sum(kF) / len(kF)), 4)] * len(kF)
+    print('Average Dynamic Friction is: ' + str(kF_Ave[0]))
+except:
+    kF_Ave = [0] * len(kF)
 
 # MOUSE POSITION PLOT
-plt.figure(1)
-plt.plot(X, Y, color='black')
-plt.title('Mouse Position')
-plt.xlim(0, None)
-plt.ylim(0, None)
-plt.grid(True, linestyle='--', color='gray', alpha=0.6)
-plt.xlabel('X Position (in)')
-plt.ylabel('Y Position (in)')
-# plt.savefig("Mouse Position.png")
+if Position_Plot == "Y":
+    plt.figure(1)
+    plt.plot(X, Y, color='black')
+    plt.title(Test_Name + 'Mouse Position')
+    plt.xlim(0, None)
+    plt.ylim(0, None)
+    plt.grid(True, linestyle='--', color='gray', alpha=0.6)
+    plt.xlabel('X Position (in)')
+    plt.ylabel('Y Position (in)')
+    plt.savefig(Test_Name + "Mouse Position.png")
 
 # MOUSE DYNAMIC FRICTION PLOT
-plt.figure(2)
-plt.figure(figsize=(12, 5))
-plt.plot(P, Fk, color='black', linestyle='--', linewidth=1, marker='o', label='Raw Data')
-plt.plot(P, Fkaa, color='red', linestyle='--', label='Average = ' + str(Fka))
-plt.plot(Pxend, Pyend, color='blue', linestyle='', marker='*', label='End of Trial Average')
-plt.legend()
-plt.title(Test_Name + ' MousePad Dynamic Friction')
-plt.xlim(0, len(P)-1)
-plt.ylim(0, None)
-plt.grid(True, linestyle='--', color='gray', alpha=0.6)
-plt.xlabel('Point (#)')
-plt.ylabel('Dynamic Friction')
-plt.savefig(Test_Name + " MousePad Dynamic Friction.png")
+if Friction_Plot == "Y":
+    plt.figure(2)
+    plt.figure(figsize=(12, 5))
+    plt.plot(P, kF, color='black', linestyle='--', linewidth=1, marker='o', label='Raw Data')
+    plt.plot(P, kF_Ave, color='red', linestyle='--', label='Average = ' + str(kF_Ave[0]))
+    plt.plot(Px, Py, color='blue', linestyle='', marker='*', label='End of Trial Average')
+    plt.legend()
+    plt.title(Test_Name + ' MousePad Dynamic Friction')
+    plt.xlim(0, len(P)-1)
+    plt.ylim(0, None)
+    plt.grid(True, linestyle='--', color='gray', alpha=0.6)
+    plt.xlabel('Point (#)')
+    plt.ylabel('Dynamic Friction')
+    plt.savefig(Test_Name + " MousePad Dynamic Friction.png")
 
-# MOUSE DISTANCE PLOT
-plt.figure(3)
-plt.figure(figsize=(8, 15))
-plt.subplot(3, 1, 1)
-plt.plot(T, D, color='black')
-plt.title(Test_Name + ' Mouse Distance vs Time')
-plt.xlim(0, Run_Time)
-plt.ylim(0, None)
-plt.grid(True, linestyle='--', color='gray', alpha=0.6)
-plt.xlabel('Time (s)')
-plt.ylabel('Distance (in)')
+if DVA_Plots == "Y":
+    # MOUSE DISTANCE PLOT
+    plt.figure(3)
+    plt.figure(figsize=(8, 15))
+    plt.subplot(3, 1, 1)
+    plt.plot(T, D, color='red')
+    plt.title(Test_Name + ' Mouse Distance vs Time')
+    plt.xlim(0, Total_Run_Time)
+    plt.ylim(0, None)
+    plt.grid(True, linestyle='--', color='gray', alpha=0.6)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Distance (in)')
 
-# MOUSE VELOCITY PLOT
-plt.subplot(3, 1, 2)
-plt.plot(T, V, color='black', linewidth=1, label='V')
-plt.plot(T, V_s, color='red', linestyle='--', label='V Smooth')
-plt.legend()
-plt.title(Test_Name + ' Mouse Velocity vs Time')
-plt.xlim(0, Run_Time)
-plt.ylim(0, None)
-plt.grid(True, linestyle='--', color='gray', alpha=0.6)
-plt.xlabel('Time (s)')
-plt.ylabel('Velocity (in/s)')
+    # MOUSE VELOCITY PLOT
+    plt.subplot(3, 1, 2)
+    plt.plot(T, V, color='red', linewidth=1)
+    plt.title(Test_Name + ' Mouse Velocity vs Time')
+    plt.xlim(0, Total_Run_Time)
+    plt.ylim(0, None)
+    plt.grid(True, linestyle='--', color='gray', alpha=0.6)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Velocity (in/s)')
 
-# Mouse Acceleration PLOT
-plt.subplot(3, 1, 3)
-plt.plot(T, A, color='black', linewidth=1, label='A')
-plt.plot(T, A_s, color='red', linestyle='--', label='A Smooth')
-plt.plot(T, A_vs, color='blue', linestyle='--', label='A Very Smooth')
-plt.legend()
-plt.title(Test_Name + ' Mouse Acceleration vs Time')
-plt.xlabel('Time (s)')
-plt.xlim(0, Run_Time)
-plt.grid(True, linestyle='--', color='gray', alpha=0.6)
-plt.ylabel('Acceleration (in/s^2)')
-plt.savefig(Test_Name + " Mouse Plotting.png")
+    # MOUSE ACCELERATION PLOT
+    plt.subplot(3, 1, 3)
+    plt.plot(T, A, color='red', linewidth=1)
+    plt.plot(Ax, Ay, color='blue', linewidth=1, linestyle='', marker='o', markersize=2)
+    plt.title(Test_Name + ' Mouse Acceleration vs Time')
+    plt.xlabel('Time (s)')
+    plt.xlim(0, Total_Run_Time)
+    plt.grid(True, linestyle='--', color='gray', alpha=0.6)
+    plt.ylabel('Acceleration (in/s^2)')
+    plt.savefig(Test_Name + " Mouse Plotting.png")
+
+# CSV DATA WRITING
+if CSV_Results == "Y":
+    with open(Test_Name + ' MousePosition.csv', 'w', newline='') as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(["T (sec)", "X (in)", "Y (in)", "D (in)", "V (in/s)", "A (in/s^2)"])
+        for i in range(0, len(T)):
+            csvwriter.writerow([T[i], X[i], Y[i], D[i], V[i], A[i]])
