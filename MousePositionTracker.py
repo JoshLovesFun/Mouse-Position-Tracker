@@ -15,7 +15,7 @@ import csv
 import matplotlib.pyplot as plt
 
 # Inputs
-Test_Name = 'Mousepad friction test 1'
+Test_Name = 'Mousepad Friction Test 1'
 Mouse_DPI = 100  # Mouse DPI
 Total_Run_Time = 5  # Duration of code execution in seconds
 X_Resolution = 1920  # Monitor pixels in the X
@@ -26,7 +26,7 @@ Time_Step = 0.01  # Sample rate
 
 # If you want the coefficient of friction plot, set to "Y".
 # If not testing, turn it off.
-Friction_Plot = "N"
+Friction_Plot = "Y"
 
 # If you want mouse distance, velocity, and acceleration plots, set to "Y".
 DVA_Plots = "Y"
@@ -128,7 +128,7 @@ for i in range(5, len(T) - 2):
 # Total average dynamic friction; if no decelerations, code skips this
 try:
     kF_Ave = [round((sum(kF) / len(kF)), 4)] * len(kF)
-    print('Average Dynamic Friction is: ' + str(kF_Ave[0]))
+    print('Average Dynamic Friction is: ' + str(kF_Ave[0]) + '.')
 except ZeroDivisionError:
     kF_Ave = [0] * len(kF)
 
@@ -142,7 +142,7 @@ if Position_Plot == "Y":
     plt.grid(True, linestyle='--', color='gray', alpha=0.6)
     plt.xlabel('X Position (in)')
     plt.ylabel('Y Position (in)')
-    plt.savefig(Test_Name + "Mouse Position.png")
+    plt.savefig(Test_Name + " Mouse Position.png")
 
 # Mouse dynamic friction plot
 if Friction_Plot == "Y":
@@ -150,18 +150,32 @@ if Friction_Plot == "Y":
     plt.figure(figsize=(12, 5))
     plt.plot(P, kF, color='black', linestyle='--', linewidth=1, marker='o',
              label='Raw Data')
-    plt.plot(P, kF_Ave, color='red', linestyle='--',
-             label='Average = ' + str(kF_Ave[0]))
+    try:
+        plt.plot(P, kF_Ave, color='red', linestyle='--',
+                 label='Average = ' + str(kF_Ave[0]))
+    except IndexError:
+        print(
+            "You have moved the mouse in a way that prevents "
+            "the dynamic friction plot from being generated correctly.\n"
+            "Please adjust your mouse movement. Try to flick "
+            "the mouse quickly in the center of the screen.\n"
+            "Some mice with high DPI values may cause this problem.\n"
+            "The other plots and CSV file should have still been made if "
+            "requested.\nIn the 'Inputs' section, you can also set the "
+            "'Friction_Plot' to 'N' if you don't need this plot.\nMaybe I "
+            "should use the computer less while I am young and healthy "
+            "and enjoy my life."
+            )
     plt.plot(Px, Py, color='blue', linestyle='', marker='*',
              label='End of Trial Average')
     plt.legend()
-    plt.title(Test_Name + ' MousePad Dynamic Friction')
+    plt.title(Test_Name + ' Mousepad Dynamic Friction')
     plt.xlim(0, len(P) - 1)
     plt.ylim(0, None)
     plt.grid(True, linestyle='--', color='gray', alpha=0.6)
     plt.xlabel('Point (#)')
     plt.ylabel('Dynamic Friction')
-    plt.savefig(Test_Name + " MousePad Dynamic Friction.png")
+    plt.savefig(Test_Name + " Mousepad Dynamic Friction.png")
 
 if DVA_Plots == "Y":
     # Mouse distance plot
@@ -169,7 +183,7 @@ if DVA_Plots == "Y":
     plt.figure(figsize=(8, 15))
     plt.subplot(3, 1, 1)
     plt.plot(T, D, color='red')
-    plt.title(Test_Name + ' Mouse Distance vs Time')
+    plt.title(Test_Name + ' Mouse Distance vs. Time')
     plt.xlim(0, Total_Run_Time)
     plt.ylim(0, None)
     plt.grid(True, linestyle='--', color='gray', alpha=0.6)
@@ -179,7 +193,7 @@ if DVA_Plots == "Y":
     # Mouse velocity plot
     plt.subplot(3, 1, 2)
     plt.plot(T, V, color='red', linewidth=1)
-    plt.title(Test_Name + ' Mouse Velocity vs Time')
+    plt.title(Test_Name + ' Mouse Velocity vs. Time')
     plt.xlim(0, Total_Run_Time)
     plt.ylim(0, None)
     plt.grid(True, linestyle='--', color='gray', alpha=0.6)
@@ -191,7 +205,7 @@ if DVA_Plots == "Y":
     plt.plot(T, A, color='red', linewidth=1)
     plt.plot(Ax, Ay, color='blue', linewidth=1, linestyle='', marker='o',
              markersize=2)
-    plt.title(Test_Name + ' Mouse Acceleration vs Time')
+    plt.title(Test_Name + ' Mouse Acceleration vs. Time')
     plt.xlabel('Time (s)')
     plt.xlim(0, Total_Run_Time)
     plt.grid(True, linestyle='--', color='gray', alpha=0.6)
@@ -200,7 +214,7 @@ if DVA_Plots == "Y":
 
 # CSV data writing
 if CSV_Results == "Y":
-    with open(Test_Name + ' MousePosition.csv', 'w', newline='') as csvfile:
+    with open(Test_Name + ' Mouse Position.csv', 'w', newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerow(
             ["T (sec)", "X (in)", "Y (in)", "D (in)", "V (in/s)",
