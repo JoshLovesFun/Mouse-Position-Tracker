@@ -1,15 +1,16 @@
 # Instructions for Mousepad Friction Testing:
-# Enter "Inputs", lower mouse DPI, then run the code. Flick your mouse, then
-# let go, so it is free-moving. When the mouse stops, repeat in the opposite
-# direction. Continue this throughout the total run time. Avoid corners of
-# the monitor as calculations may be affected. When testing is complete, the
-# code will extract the negative acceleration periods (when your hand leaves
-# the mouse) and calculate the average dynamic friction. Graphs of the results
-# will appear in the same folder where the code is run from.
 
-import numpy as np
-import pyautogui
-import datetime
+# Change the "Inputs" as needed, lower the mouse DPI, then run the code. Flick
+# your mouse, then let go, so it is free-moving. When the mouse stops, repeat
+# in the opposite direction. Continue this throughout the total run time.
+# Avoid corners of the monitor as calculations may be affected. When testing is
+# complete, the code will extract the negative acceleration periods (when your
+# hand leaves the mouse) and calculate the average dynamic friction. Graphs of
+# the results will appear in the same folder where the code is run from.
+
+from numpy import gradient
+from pyautogui import position
+from datetime import datetime
 import csv
 import matplotlib.pyplot as plt
 
@@ -36,24 +37,26 @@ CSV_Results = "Y"
 # If you want the mouse position plot, set to "Y".
 Position_Plot = "Y"
 
+DECELERATION_INCHES_PER_S2 = -386.08858
+
 # Storage lists defined
 T, X, Y, D, P, kF, Px, Py, Ax, Ay = [], [], [], [0], [], [], [], [], [], []
 
 # Initialize time parameters
-TimeStart = datetime.datetime.now()
-Current_Run_Time = datetime.datetime.now() - TimeStart
+TimeStart = datetime.now()
+Current_Run_Time = datetime.now() - TimeStart
 Sample_Time = Current_Run_Time
 
 # Iterate through time
 while Current_Run_Time.total_seconds() <= Total_Run_Time:
-    Current_Run_Time = datetime.datetime.now() - TimeStart
+    Current_Run_Time = datetime.now() - TimeStart
 
     # If the current time is greater than sample time + time step,
     # get mouse position and append data to T, X, and Y lists.
     if (Sample_Time.total_seconds() + Time_Step
             <= Current_Run_Time.total_seconds()):
-        Position = pyautogui.position()
-        Sample_Time = datetime.datetime.now() - TimeStart
+        Position = position()
+        Sample_Time = datetime.now() - TimeStart
         T.append(Sample_Time.total_seconds())
         X.append(Position[0] / Mouse_DPI)
         Y.append(Y_Resolution / Mouse_DPI - Position[1] / Mouse_DPI)
@@ -64,8 +67,8 @@ for i in range(1, len(T)):
     D.append(del_D + D[i - 1])
 
 # Velocity and acceleration calculations
-V = np.gradient(D, T)
-A = np.gradient(V, T)
+V = gradient(D, T)
+A = gradient(V, T)
 
 # Iterate through acceleration data to extract relevant
 # deceleration intervals "trials"
@@ -95,8 +98,8 @@ for i in range(5, len(T) - 2):
 
             # Get point and dynamic friction at point
             P.append(Trial_Point)
-            kF.append(A[ii] / -386.1)
-            Individual_Trial_Sum += (A[ii] / -386.1)
+            kF.append(A[ii] / DECELERATION_INCHES_PER_S2)
+            Individual_Trial_Sum += (A[ii] / DECELERATION_INCHES_PER_S2)
 
             # Get list of relevant acceleration points, so we can graph them
             Ax.append(T[ii])
