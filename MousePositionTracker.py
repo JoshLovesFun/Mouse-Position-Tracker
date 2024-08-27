@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 # Inputs
 Test_Name = 'Mousepad Friction Test 1'
 Mouse_DPI = 100  # Mouse DPI
-Total_Run_Time = 5  # Duration of code execution in seconds
+Total_Run_Time = 11  # Duration of code execution in seconds
 X_Resolution = 1920  # Monitor pixels in the X
 Y_Resolution = 1200  # Monitor pixels in the Y
 Time_Step = 0.01  # Sample rate
@@ -136,7 +136,7 @@ except ZeroDivisionError:
 if Position_Plot == "Y":
     plt.figure(1)
     plt.plot(X, Y, color='black')
-    plt.title(Test_Name + 'Mouse Position')
+    plt.title(Test_Name + ' Mouse Position')
     plt.xlim(0, None)
     plt.ylim(0, None)
     plt.grid(True, linestyle='--', color='gray', alpha=0.6)
