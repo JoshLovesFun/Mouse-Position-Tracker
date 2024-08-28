@@ -19,3 +19,11 @@ the results will appear in the same folder where the code is run from.
 <p align="center">
   <img src="pics/Mousepad Friction Test 1 Mouse Plotting.png" alt="Logo" />
 </p>
+
+<p align="center">
+  <img src="pics/Mousepad Friction Test 1 Mouse Position.png" alt="Logo" />
+</p>
+
+<p align="center">
+  <img src="pics/Mousepad Friction Test 1 Mousepad Dynamic Friction.png" alt="Logo" />
+</p>
