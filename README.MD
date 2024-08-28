@@ -1,7 +1,8 @@
 # Mousepad Friction Tester
 
 ## About
-The Mousepad Friction Tester analyzes mouse movement to calculate the dynamic friction coefficients of a mousepad. It generates plots and CSV files containing data on distance, velocity, and acceleration, which can be used to assess mousepad performance.
+The Mousepad Friction Tester analyzes mouse movement to calculate the dynamic friction coefficients of a mousepad. It generates plots showing distance, velocity, and acceleration, which can be used to assess mousepad performance.
+Additionally, a complementary CSV file is generated.
 
 ## Instructions
 
